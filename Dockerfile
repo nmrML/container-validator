@@ -1,82 +1,128 @@
 FROM ubuntu:18.04
 
-#FROM debian:bullseye
-
-## Install OpenMS TOPP tools
-
-#RUN cp /etc/apt/sources.list /etc/apt/sources.list.d/sources-src.list
-#RUN sed -i 's|deb http|deb-src http|g' /etc/apt/sources.list.d/sources-src.list
-#RUN echo "deb http://deb.debian.org/debian buster main contrib" >>/etc/apt/sources.list.d/buster.list
-#RUN echo "deb-src http://deb.debian.org/debian buster main contrib" >>/etc/apt/sources.list.d/buster.list
-
-#    apt-get -y install libopenms2.4.0 openms-common=2.4.0-real-1 && \
-
-#RUN apt-get update && \
-#    apt-get -y build-dep  libopenms2.4.0 && \
-#    apt-get -y install libqt4-dev qdbus=4:4.8.7+dfsg-18+deb10u1 libqtwebkit-dev && \
-#    apt-get -y clean && \
-#    rm -rf \
-#      /var/lib/apt/lists/* \
-#      /usr/share/doc \
-#      /usr/share/doc-base \
-#      /usr/share/man \
-#      /usr/share/locale \
-#      /usr/share/zoneinfo
-
-#RUN apt-get update && \
-#      apt-get -y install libqt4-dev qdbus=4:4.8.7+dfsg-18+deb10u1 libqtwebkit-dev
 RUN apt-get update && \
-            apt-get -y install libqt4-dev  libqtwebkit-dev
-
-RUN apt-get -y install cmake g++ libboost-regex-dev libboost-iostreams-dev libboost-date-time-dev libboost-math-dev doxygen libxerces-c-dev libsvm-dev libglpk-dev zlib1g-dev libbz2-dev
+            apt-get -y install libqt4-dev  libqtwebkit-dev \
+              cmake g++ libsvm-dev libglpk-dev zlib1g-dev libbz2-dev autoconf libtool
 
 RUN ln -s /usr/bin/make /usr/bin/gmake
 
-RUN apt-get -y install autoconf libtool
-
+COPY OpenMS/contrib /OpenMS/contrib
 WORKDIR /OpenMS/contrib
 
-# RUN for F in BOOST XERCESC SEQAN ; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
+RUN for F in BOOST XERCESC SEQAN ; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
 
 # find . -name "*.a" -o -name "*.so" -o -name "*.o" -o "*.lo" -exec rm \{\} \;
 
 
+COPY OpenMS/OpenMS-nmrML /OpenMS/OpenMS-nmrML
+WORKDIR /OpenMS/OpenMS-nmrML
+RUN apt-get -y install doxygen patch
 
-# debhelper (>= 9.20151004), dpkg-dev (>= 1.16.1~),  libeigen3-dev, libwildmagic-dev,
-# libboost-dev (>= 1.54.0), libboost-iostreams-dev (>= 1.54.0), libboost-date-time-dev (>= 1.54.0), libboost-math-dev (>= 1.54.0),
-# libsqlite3-dev, seqan-dev (>= 1.4.1), ,
-# cppcheck (>= 1.54), qtbase5-dev (>= 5.7.0), libqt5opengl5-desktop-dev (>= 5.7.0),
-# libqt5svg5-dev (>= 5.7.0), coinor-libcbc-dev (>= 2.8.12-1+b2), coinor-libcgl-dev (>= 0.58.9-1+b1), imagemagick, doxygen (>= 1.8.1.2), graphviz,
-# texlive-extra-utils, texlive-latex-extra, texlive-latex-recommended, texlive-fonts-extra, texlive-font-utils, texlive-plain-generic, tex-gyre, ghostscript, texlive-fonts-recommended
+RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib .
 
-## Build OpenMS
+## This is known to fail, hence the true
+RUN make -j 4 FileInfo || true
+RUN /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/FileInfo.dir/source/APPLICATIONS/TOPP/FileInfo.C.o  -o bin/FileInfo -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
 
-# COPY OpenMS/OpenMS-nmrML /OpenMS/OpenMS-nmrML
-# COPY OpenMS/contrib /OpenMS/contrib
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get install -y apache2 libapache2-mod-php
 
-#WORKDIR /OpenMS/contrib
-#
-#RUN cmake --fresh  -DBUILD_TYPE=XERCESC .
-#RUN cmake --fresh  -DBUILD_TYPE=GSL .
-#RUN cmake --fresh  -DBUILD_TYPE=SVM .
+ENTRYPOINT ["docker-php-entrypoint"]
+# https://httpd.apache.org/docs/2.4/stopping.html#gracefulstop
+STOPSIGNAL SIGWINCH
 
-#  -DBUILD_TYPE="XERCESC"
-#WORKDIR /OpenMS/OpenMS-nmrML
+COPY apache2-foreground /usr/local/bin/
+COPY docker-php-entrypoint  /usr/local/bin/
+
+ENV PHP_INI_DIR /usr/local/etc/php
+RUN set -eux; \
+	mkdir -p "$PHP_INI_DIR/conf.d"
+
+ENV APACHE_CONFDIR /etc/apache2
+ENV APACHE_ENVVARS $APACHE_CONFDIR/envvars
+
+RUN set -eux; \
+# generically convert lines like
+#   export APACHE_RUN_USER=www-data
+# into
+#   : ${APACHE_RUN_USER:=www-data}
+#   export APACHE_RUN_USER
+# so that they can be overridden at runtime ("-e APACHE_RUN_USER=...")
+	sed -ri 's/^export ([^=]+)=(.*)$/: ${\1:=\2}\nexport \1/' "$APACHE_ENVVARS"; \
+	\
+# setup directories and permissions
+	. "$APACHE_ENVVARS"; \
+	for dir in \
+		"$APACHE_LOCK_DIR" \
+		"$APACHE_RUN_DIR" \
+		"$APACHE_LOG_DIR" \
+	; do \
+		rm -rvf "$dir"; \
+		mkdir -p "$dir"; \
+		chown "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$dir"; \
+# allow running as an arbitrary user (https://github.com/docker-library/php/issues/743)
+		chmod 1777 "$dir"; \
+	done; \
+	\
+# delete the "index.html" that installing Apache drops in here
+	rm -rvf /var/www/html/*; \
+	\
+# logs should go to stdout / stderr
+	ln -sfT /dev/stderr "$APACHE_LOG_DIR/error.log"; \
+	ln -sfT /dev/stdout "$APACHE_LOG_DIR/access.log"; \
+	ln -sfT /dev/stdout "$APACHE_LOG_DIR/other_vhosts_access.log"; \
+	chown -R --no-dereference "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_LOG_DIR"
+
+# Apache + PHP requires preforking Apache for best results
+RUN a2dismod mpm_event && a2enmod mpm_prefork
+
+# PHP files should be handled by PHP, and should be preferred over any other file type
+RUN { \
+		echo '<FilesMatch \.php$>'; \
+		echo '\tSetHandler application/x-httpd-php'; \
+		echo '</FilesMatch>'; \
+		echo; \
+		echo 'DirectoryIndex disabled'; \
+		echo 'DirectoryIndex index.php index.html'; \
+		echo; \
+		echo '<Directory /var/www/>'; \
+		echo '\tOptions -Indexes'; \
+		echo '\tAllowOverride All'; \
+		echo '</Directory>'; \
+	} | tee "$APACHE_CONFDIR/conf-available/docker-php.conf" \
+	&& a2enconf docker-php
+
+WORKDIR /var/www/html
+
+## Copy the validator
+COPY src/nmrML-validator nmrML-validator
+
+
+RUN set -eux; \
+# smoke test
+	php --version
+
+EXPOSE 80
+CMD ["apache2-foreground"]
+
+
+### ----------------------- Old leftovers
+
 
 ## Patch:  ./source/APPLICATIONS/TOPP/executables.cmake
-#--- ./source/APPLICATIONS/TOPP/executables.cmake~	2023-08-10 16:31:02.000000000 +0200
-#+++ ./source/APPLICATIONS/TOPP/executables.cmake	2023-08-11 12:28:53.170407745 +0200
+#RUN patch ./source/APPLICATIONS/TOPP/executables.cmake
+#--- ./source/APPLICATIONS/TOPP/executables.cmake	2023-08-10 16:31:02.000000000 +0200
+#+++ ./source/APPLICATIONS/TOPP/executables.cmake~	2023-08-11 12:28:53.170407745 +0200
 #@@ -107,6 +107,7 @@
 # ## all targets with need linkage against OpenMS_GUI.lib - they also need to appear in the list above)
 # set(TOPP_executables_with_GUIlib
 # ExecutePipeline
 #+PILISIdentification
+#+FileInfo
 # )
 
 
 # RUN rm /OpenMS/OpenMS-nmrML/CMakeCache.txt
-#RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib .
-#RUN make -j 4 bin/FileInfo
 #RUN make -j 4
 ## Obtain the nmrML schema and mapping files
 # https://github.blog/2020-12-21-get-up-to-speed-with-partial-clone-and-shallow-clone/
@@ -86,8 +132,6 @@ WORKDIR /OpenMS/contrib
 
 #FROM php:8-apache-bullseye
 
-## Copy the validator
-#COPY src/ /var/www/html/
 
 
 
