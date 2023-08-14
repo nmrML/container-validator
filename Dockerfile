@@ -2,18 +2,18 @@ FROM ubuntu:18.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-            apt-get -y install libqt4-dev  libqtwebkit-dev \
-              cmake g++ libsvm-dev libglpk-dev zlib1g-dev libbz2-dev autoconf libtool doxygen patch
+            apt-get install -y libqt4-dev  libqtwebkit-dev \
+              cmake g++ libsvm-dev libglpk-dev zlib1g-dev libbz2-dev autoconf libtool doxygen patch subversion
 
 RUN ln -s /usr/bin/make /usr/bin/gmake
 
 COPY OpenMS/contrib /OpenMS/contrib
 WORKDIR /OpenMS/contrib
-RUN for F in BOOST XERCESC SEQAN ; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
+RUN for F in BOOST XERCESC SEQAN; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
 
 COPY OpenMS/OpenMS-nmrML /OpenMS/OpenMS-nmrML
 WORKDIR /OpenMS/OpenMS-nmrML
-RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib . || /bin/true
+RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib .
 
 ## This is known to fail, hence the true
 RUN make -j 4 FileInfo || true
