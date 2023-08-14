@@ -13,7 +13,7 @@ RUN for F in BOOST XERCESC SEQAN ; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$
 
 COPY OpenMS/OpenMS-nmrML /OpenMS/OpenMS-nmrML
 WORKDIR /OpenMS/OpenMS-nmrML
-RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib .
+RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib . || /bin/true
 
 ## This is known to fail, hence the true
 RUN make -j 4 FileInfo || true
