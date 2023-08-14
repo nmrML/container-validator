@@ -1,0 +1,13 @@
+--- CMakeLists.txt	2010-03-28 21:06:13.000000000 +0200
++++ CMakeLists.txt.tmp	2013-06-17 13:47:16.000000000 +0200
+@@ -135,6 +135,10 @@
+ 
+ set_target_properties(zlib PROPERTIES SOVERSION 1)
+ 
++if (CMAKE_SIZEOF_VOID_P MATCHES "8" AND MSVC) 
++	set_target_properties(zlib PROPERTIES STATIC_LIBRARY_FLAGS "/machine:x64")
++endif()
++
+ if(NOT CYGWIN)
+     # This property causes shared libraries on Linux to have the full version
+     # encoded into their final filename.  We disable this on Cygwin because

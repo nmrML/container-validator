@@ -1,0 +1,11 @@
+--- src\xercesc\util\XercesDefs.hpp	Do Jan 22 19:13:55 2009
++++ src\xercesc\util\XercesDefs.hpp	Do Jan 22 19:13:22 2009
+@@ -133,7 +133,7 @@
+ // The DLL_EXPORT flag should be defined on the command line during the build of a DLL
+ // configure conspires to make this happen.
+ 
+-#if defined(DLL_EXPORT)
++#if ((defined(DLL_EXPORT)) || (defined(OPENMS_XERCESDLL)))
+   #if defined(XERCES_BUILDING_LIBRARY)
+     #define XMLUTIL_EXPORT XERCES_PLATFORM_EXPORT
+     #define XMLPARSER_EXPORT XERCES_PLATFORM_EXPORT

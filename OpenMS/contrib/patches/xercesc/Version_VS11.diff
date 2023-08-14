@@ -1,0 +1,11 @@
+--- src/xercesc/util/MsgLoaders/Win32/Version.rc	Mi Jun 27 16:20:14 2012
++++ src/xercesc/util/MsgLoaders/Win32/Version.rc	Mi Jun 27 16:20:00 2012
+@@ -8,7 +8,7 @@
+ // Generated from the TEXTINCLUDE 2 resource.
+ //
+ #include "winver.h"
+-#include "winnt.h"
++#include "windows.h"
+ 
+ 
+ /////////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,13 @@
+--- src\xercesc\util\Xerces_autoconf_config.msvc.hpp	Do Jul 24 19:24:46 2008
++++ src\xercesc\util\Xerces_autoconf_config.msvc.hpp	Do Jan 22 14:09:09 2009
+@@ -91,8 +91,10 @@
+ #else
+ #  define XERCES_PLATFORM_EXPORT __declspec(dllexport)
+ #  define XERCES_PLATFORM_IMPORT __declspec(dllimport)
++#ifndef OPENMS_XERCESDLL
+ #  define DLL_EXPORT
+ #endif
++#endif
+ 
+ #define XERCES_MFC_SUPPORT
+ 
