@@ -1,0 +1,2 @@
+/OpenMS/contrib/CMakeFiles/rebuild_cache.dir
+/OpenMS/contrib/CMakeFiles/edit_cache.dir
