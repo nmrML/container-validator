@@ -3,13 +3,13 @@
 		<TITLE>OpenMS nmrML validator</TITLE>
 	</HEAD>
 	<BODY>
-<?     
+<?php
         // enable for debugging
 //        error_reporting(E_ALL);
 //        ini_set("display_errors", 1);
 
 	$output = array();
-	$upload_ok = false; 
+	$upload_ok = false;
 	$nmrml_file = '';
 	if ($_FILES["file"]["error"] > 0)
   {
@@ -67,7 +67,7 @@
 	                  if($t < $timespan) {
                              @unlink('files/'.$files[$i]);
 	                  }
-	                }	
+	                }
 		}
 	}
 ?>
@@ -80,11 +80,11 @@
 						<BR>
 						<INPUT type="submit" value="validate">
 					</FORM>
-					
+
 					<UL>
 						<!--<LI> <font color="red">We are having technical problems. Please come back later!</font>-->
 						<LI> This service is based on the TOPP tool <A href="http://ftp.mi.fu-berlin.de/OpenMS/release-documentation/html/TOPP_FileInfo.html">FileInfo</A>.
-						<LI> It works with <A href="http://nmrml.org/schema/">nmrML</a> using the current development versions (<A href="https://github.com/nmrML/nmrML/blob/master/xml-schemata/XMLSchema.xsd">schema</A>, <A href="https://github.com/nmrML/nmrML/blob/master/ontologies/nmr-mapping.xml">mapping</A>, <A href="https://github.com/nmrML/nmrML/blob/master/ontologies/nmrCV.owl">CV</A>).
+						<LI> It works with <A href="http://nmrml.org/schema/">nmrML (current development version)</A> (<A href="https://github.com/nmrML/nmrML/blob/master/xml-schemata/XMLSchema.xsd">schema</A>, <A href="https://github.com/nmrML/nmrML/blob/master/ontologies/nmr-mapping.xml">mapping</A>, <A href="https://github.com/nmrML/nmrML/blob/master/ontologies/nmrCV.owl">CV</A>).
 						<LI> An HTML representation of the official MSI mapping file and the CV can be found <A href="http://htmlpreview.github.com/?https://github.com/nmrML/nmrML/blob/master/docs/mapping_and_cv.html">here</A>. It was created using the UTILS tool <A href="http://ftp.mi.fu-berlin.de/OpenMS/release-documentation/html/UTILS_CVInspector.html">CVInspector</A>.
 					</UL>
 				</TD>
@@ -94,7 +94,7 @@
 				</TD>
 			</TR>
 		</TABLE>
-<?
+<?php
 	//write output of upload
 	foreach ($output as $o)
 	{
@@ -107,12 +107,12 @@
 		print "<HR><B>Validation:</b> FileInfo -v -in ".$_FILES["file"]["name"].".<BR>";
 		print "<PRE>";
 //		echo "Executing " . './FileInfo.sh "./files/'.$nmrml_file.'" 2>&1', $out ;
-		
+
 		exec('./FileInfo.sh "./files/'.$nmrml_file.'" 2>&1', $out);
 		foreach ($out as $line)
 		{
 			print strtr($line."\n", array("./files/"=>""));
-		}	
+		}
 		print "</PRE>";
 	}
 ?>
