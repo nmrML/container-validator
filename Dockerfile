@@ -1,38 +1,43 @@
 FROM ubuntu:18.04
 
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
             apt-get -y install libqt4-dev  libqtwebkit-dev \
-              cmake g++ libsvm-dev libglpk-dev zlib1g-dev libbz2-dev autoconf libtool
+              cmake g++ libsvm-dev libglpk-dev zlib1g-dev libbz2-dev autoconf libtool doxygen patch
 
 RUN ln -s /usr/bin/make /usr/bin/gmake
 
 COPY OpenMS/contrib /OpenMS/contrib
 WORKDIR /OpenMS/contrib
-
 RUN for F in BOOST XERCESC SEQAN ; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
-
-# find . -name "*.a" -o -name "*.so" -o -name "*.o" -o "*.lo" -exec rm \{\} \;
-
 
 COPY OpenMS/OpenMS-nmrML /OpenMS/OpenMS-nmrML
 WORKDIR /OpenMS/OpenMS-nmrML
-RUN apt-get -y install doxygen patch
-
 RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib .
 
 ## This is known to fail, hence the true
 RUN make -j 4 FileInfo || true
+RUN make -j 4 SemanticValidator || true
 RUN /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/FileInfo.dir/source/APPLICATIONS/TOPP/FileInfo.C.o  -o bin/FileInfo -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
+RUN /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/SemanticValidator.dir/source/APPLICATIONS/UTILS/SemanticValidator.C.o  -o bin/SemanticValidator -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
+
+
+### Now the runtime environment
+FROM ubuntu:18.04
+
+COPY --from=0 /OpenMS/OpenMS-nmrML/bin /OpenMS/OpenMS-nmrML/bin
+COPY --from=0 /OpenMS/OpenMS-nmrML/lib /OpenMS/OpenMS-nmrML/lib
+COPY --from=0 /OpenMS/OpenMS-nmrML/share /OpenMS/OpenMS-nmrML/share
+ENV OPENMS_DATA_PATH=/OpenMS/OpenMS-nmrML/share
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get install -y apache2 libapache2-mod-php
+RUN apt-get update && \
+            apt-get install -y libqt4-network libqt4-sql libqtcore4 libqtgui4 \
+              libglpk40 libsvm3 zlib1g libgomp1 \
+              apache2 libapache2-mod-php
 
-ENTRYPOINT ["docker-php-entrypoint"]
-# https://httpd.apache.org/docs/2.4/stopping.html#gracefulstop
-STOPSIGNAL SIGWINCH
-
-COPY apache2-foreground /usr/local/bin/
-COPY docker-php-entrypoint  /usr/local/bin/
+# Smoke test
+RUN /OpenMS/OpenMS-nmrML/bin/FileInfo --help
 
 ENV PHP_INI_DIR /usr/local/etc/php
 RUN set -eux; \
@@ -93,46 +98,19 @@ RUN { \
 	&& a2enconf docker-php
 
 WORKDIR /var/www/html
-
-## Copy the validator
+## Copy the validator and CV+Mapping
 COPY src/nmrML-validator nmrML-validator
-
+COPY nmrML /nmrML
 
 RUN set -eux; \
 # smoke test
 	php --version
 
+COPY apache2-foreground /usr/local/bin/
+COPY docker-php-entrypoint  /usr/local/bin/
+ENTRYPOINT ["docker-php-entrypoint"]
+# https://httpd.apache.org/docs/2.4/stopping.html#gracefulstop
+STOPSIGNAL SIGWINCH
+
 EXPOSE 80
 CMD ["apache2-foreground"]
-
-
-### ----------------------- Old leftovers
-
-
-## Patch:  ./source/APPLICATIONS/TOPP/executables.cmake
-#RUN patch ./source/APPLICATIONS/TOPP/executables.cmake
-#--- ./source/APPLICATIONS/TOPP/executables.cmake	2023-08-10 16:31:02.000000000 +0200
-#+++ ./source/APPLICATIONS/TOPP/executables.cmake~	2023-08-11 12:28:53.170407745 +0200
-#@@ -107,6 +107,7 @@
-# ## all targets with need linkage against OpenMS_GUI.lib - they also need to appear in the list above)
-# set(TOPP_executables_with_GUIlib
-# ExecutePipeline
-#+PILISIdentification
-#+FileInfo
-# )
-
-
-# RUN rm /OpenMS/OpenMS-nmrML/CMakeCache.txt
-#RUN make -j 4
-## Obtain the nmrML schema and mapping files
-# https://github.blog/2020-12-21-get-up-to-speed-with-partial-clone-and-shallow-clone/
-# RUN git clone --depth=1 --filter=tree:0 --single-branch --branch=master
-
-#     apt-get -y build-dep topp=2.4.0-real-1 && \
-
-#FROM php:8-apache-bullseye
-
-
-
-
-## docker run --rm -it -v /home/sneumann/src/nmrML/container-validator/OpenMS/contrib:/OpenMS/contrib -v /home/sneumann/src/nmrML/container-validator/OpenMS/OpenMS-nmrML:/OpenMS/OpenMS-nmrML sneumann/nmrml-validator bash
