@@ -19,6 +19,10 @@ RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib . || /bin/true
 ## This is known to fail, hence the true
 RUN make -j 4 FileInfo || /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/FileInfo.dir/source/APPLICATIONS/TOPP/FileInfo.C.o  -o bin/FileInfo -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
 
+COPY SemanticValidator.tgz /tmp/SemanticValidator.tgz
+RUN tar xzvf /tmp/SemanticValidator.tgz
+RUN make SemanticValidator || /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic CMakeFiles/SemanticValidator.dir/source/APPLICATIONS/UTILS/SemanticValidator.C.o  -o bin/SemanticValidator -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib lib/libOpenMS.so -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
+
 ### Now the runtime environment
 FROM ubuntu:18.04
 
@@ -35,6 +39,13 @@ RUN apt-get update && \
 
 # Smoke test
 RUN /OpenMS/OpenMS-nmrML/bin/FileInfo --help
+
+## Old binary builds
+COPY binary.tgz /tmp/binary.tgz
+RUN mkdir -p /OpenMS/OpenMS
+WORKDIR /OpenMS/OpenMS
+RUN tar xzvf /tmp/binary.tgz
+RUN LD_LIBRARY_PATH=/OpenMS/OpenMS/lib/:$LD_LIBRARY_PATH OPENMS_DATA_PATH=/OpenMS/OpenMS-nmrML/share/OpenMS /OpenMS/OpenMS/bin/SemanticValidator --help
 
 ENV PHP_INI_DIR /usr/local/etc/php
 RUN set -eux; \
@@ -108,6 +119,8 @@ COPY docker-php-entrypoint  /usr/local/bin/
 ENTRYPOINT ["docker-php-entrypoint"]
 # https://httpd.apache.org/docs/2.4/stopping.html#gracefulstop
 STOPSIGNAL SIGWINCH
+
+RUN mkdir /var/www/html/nmrML-validator/files ; chown www-data:www-data /var/www/html/nmrML-validator/files
 
 EXPOSE 80
 CMD ["apache2-foreground"]
