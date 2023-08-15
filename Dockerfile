@@ -9,18 +9,15 @@ RUN ln -s /usr/bin/make /usr/bin/gmake
 
 COPY OpenMS/contrib /OpenMS/contrib
 WORKDIR /OpenMS/contrib
-RUN for F in BOOST XERCESC SEQAN; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
+RUN for F in BOOST XERCESC SEQAN GSL; do cmake -DBOOST_USE_STATIC=NO -DBUILD_TYPE=$F . ; done
 
-COPY OpenMS/OpenMS-nmrML /OpenMS/OpenMS-nmrML
+COPY OpenMS/OpenMS-nmrML.tar.bz2 /tmp/OpenMS-nmrML.tar.bz2
+RUN tar xjvf /tmp/OpenMS-nmrML.tar.bz2 -C /OpenMS
 WORKDIR /OpenMS/OpenMS-nmrML
-RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib .
+RUN cmake --fresh  -DCMAKE_FIND_ROOT_PATH=/OpenMS/contrib . || /bin/true
 
 ## This is known to fail, hence the true
-RUN make -j 4 FileInfo || true
-RUN make -j 4 SemanticValidator || true
-RUN /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/FileInfo.dir/source/APPLICATIONS/TOPP/FileInfo.C.o  -o bin/FileInfo -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
-RUN /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/SemanticValidator.dir/source/APPLICATIONS/UTILS/SemanticValidator.C.o  -o bin/SemanticValidator -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
-
+RUN make -j 4 FileInfo || /usr/bin/c++    -fopenmp -O3 -DNDEBUG  -Wl,--copy-dt-needed-entries -rdynamic -fopenmp CMakeFiles/FileInfo.dir/source/APPLICATIONS/TOPP/FileInfo.C.o  -o bin/FileInfo -Wl,-rpath,/OpenMS/OpenMS-nmrML/lib -lQtOpenGL -lQtGui -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenMS.so -lQtGui -lQtOpenGL -lQtSvg -lQtWebKit -lQtTest -lQtXml -lQtSql -lQtNetwork lib/libOpenSwathAlgo.so /OpenMS/contrib/lib/libgsl.a /OpenMS/contrib/lib/libgslcblas.a -lsvm -lm /OpenMS/contrib/lib/libxerces-c.a /OpenMS/contrib/lib/libboost_iostreams-mt.a /OpenMS/contrib/lib/libboost_date_time-mt.a /OpenMS/contrib/lib/libboost_math_c99-mt.a /OpenMS/contrib/lib/libboost_regex-mt.a -lbz2 -lz -lglpk
 
 ### Now the runtime environment
 FROM ubuntu:18.04
